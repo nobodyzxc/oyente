@@ -85,7 +85,7 @@ def calculate_gas(opcode, stack, mem, global_state, analysis, solver):
             gas_increment += GCOST["Glogdata"] * stack[1]
         elif isinstance(stack[1], BitVecRef):
             gas_constraints = "{} * {} (omit, no assignment)".format(
-                    GCOST["Gexpbyte"], str(stack[1]))
+                    GCOST["Glogdata"], str(stack[1]))
         else:
             print("unknown type on LOG", type(stack[1]))
             exit(0)
@@ -101,23 +101,23 @@ def calculate_gas(opcode, stack, mem, global_state, analysis, solver):
         else:
             print("unknown type on EXP", type(stack[1]))
             exit(0)
-    elif opcode == "EXTCODECOPY" and len(stack) > 2:
-        if isReal(stack[2]):
-            gas_increment += GCOST["Gcopy"] * math.ceil(stack[2] / 32)
-        elif isinstance(stack[2], BitVecRef):
-            gas_constraints = "{} * ceil({} / 32) (omit, no assignment)".format(
-                    GCOST["Gcopy"], str(stack[2]))
-        else:
-            print("unknown type on EXTCODECOPY", type(stack[2]))
-            exit(0)
-    elif opcode in ("CALLDATACOPY", "CODECOPY") and len(stack) > 3:
-        if isReal(stack[3]):
+    elif opcode == "EXTCODECOPY" and len(stack) > 3: # oyente ERROR to be 2
+        if isReal(stack[3]):                         # fix to 3 according to spec
             gas_increment += GCOST["Gcopy"] * math.ceil(stack[3] / 32)
         elif isinstance(stack[3], BitVecRef):
             gas_constraints = "{} * ceil({} / 32) (omit, no assignment)".format(
                     GCOST["Gcopy"], str(stack[3]))
         else:
             print("unknown type on EXTCODECOPY", type(stack[3]))
+            exit(0)
+    elif opcode in ("CALLDATACOPY", "CODECOPY", "RETURNDATACOPY") and len(stack) > 2:
+        if isReal(stack[2]): # oyente ERROR to be 3 fix to 3 according to spec
+            gas_increment += GCOST["Gcopy"] * math.ceil(stack[2] / 32)
+        elif isinstance(stack[3], BitVecRef):
+            gas_constraints = "{} * ceil({} / 32) (omit, no assignment)".format(
+                    GCOST["Gcopy"], str(stack[2]))
+        else:
+            print("unknown type on CALLDATACOPY || CODECOPY", type(stack[2]))
             exit(0)
     elif opcode == "SSTORE" and len(stack) > 1:
         if isReal(stack[1]):
@@ -186,7 +186,7 @@ def calculate_gas(opcode, stack, mem, global_state, analysis, solver):
                                     .replace("[", "{")\
                                     .replace("]", "}")\
                                     .replace("=", ":"))
-                else: # known
+                else: # unknown
                     gas_increment += GCOST["Gsreset"]
                     gas_constraints += "{}(Gsreset):({}){}".format(
                             GCOST["Gsreset"], expr, "{unknown}")

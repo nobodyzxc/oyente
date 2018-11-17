@@ -1,4 +1,5 @@
 from draw_cfg import *
+import os
 import pprint
 from functools import reduce
 from opcodes import stack_v
@@ -307,7 +308,7 @@ def print_cfg(filename, args):
     if args.cfg_gas: graph_type = longest
     if args.cfg_weak: graph_type = weakness
 
-    if args.cfg or args.cfg_weak or args.cfg_gas:
+    if args.cfg or args.cfg_gas:
         create_graph(
                 mark[graph_type](
                     cfg_nodes(blocks,
@@ -317,6 +318,32 @@ def print_cfg(filename, args):
                         cfg_path_constraints,
                         args.paths)),
                 filename)
+
+    if args.cfg_weak:
+        nodes = mark_weak_node(blocks, cfg_nodes(blocks, args.paths))
+        weak_blocks = set(block.start \
+            for block in blocks if block.weakness)
+        weak_paths = [path for path in all_path \
+                if any([b in weak_blocks for b in path])]
+        for idx, path in enumerate(weak_paths):
+            weakness = set()
+            for b in path:
+                weakness.update(vertices[b].weakness)
+            weak_edges = set(list(zip(path[:-1], path[1:])))
+            eds = cfg_edges(edges,
+                    cfg_path_constraints,
+                    args.paths)
+            for i, edge in enumerate(eds):
+                (b, e) = edge[0]
+                b, e = int(b), int(e)
+                if (b, e) in weak_edges:
+                    eds[i][1]['color'] = 'red'
+
+            for weak in weakness:
+                if not os.path.exists(weak):
+                    os.makedirs(weak)
+                create_graph(nodes, eds, "{}/{}_{}".format(weak, filename, idx))
+
 
     eprint = lambda *args, **kwargs: print(*args, file=sys.stderr, **kwargs)
 
